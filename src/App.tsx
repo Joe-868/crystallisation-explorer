@@ -5,9 +5,9 @@ type SimItem = 'powder' | 'weighed' | 'sandwich' | null;
 type ProcessKey = 'heating' | 'cooling' | 'reheating' | null;
 
 const guideSteps = [
-  'Drag the ROY powder to the analytical balance.',
-  'Drag the weighed ROY powders 5 mg onto the coverslips.',
-  'Drag the coverslip sandwich onto the Linkam stage.',
+  'Click the ROY powder to the analytical balance.',
+  'Click the weighed ROY powders 5 mg onto the coverslips.',
+  'Click the coverslip sandwich onto the Linkam stage.',
   'Heat the loaded sample and watch melting.',
   'Cool the melt and watch crystals grow.',
   'Reheat the sample and watch the phase changes.'
@@ -73,8 +73,8 @@ function PictureWithFallback({
 
 export default function App() {
   const [step, setStep] = useState(0);
-  const [dragItem, setDragItem] = useState<SimItem>(null);
-  const [feedback, setFeedback] = useState('Drag the highlighted tool to the matching instrument.');
+  const [ClickItem, setClickItem] = useState<SimItem>(null);
+  const [feedback, setFeedback] = useState('Click the highlighted tool to the matching instrument.');
   const [activeProcess, setActiveProcess] = useState<ProcessKey>(null);
   const [lastVideo, setLastVideo] = useState<ProcessKey>(null);
   const [countdown, setCountdown] = useState<number>(PROCESS_DURATIONS.heating);
@@ -130,11 +130,11 @@ export default function App() {
   }, [activeProcess, step]);
 
   const toolHeading = step === 0
-    ? 'Drag to the balance'
+    ? 'Click to the balance'
     : step === 1
-      ? 'Drag onto coverslips'
+      ? 'Click onto coverslips'
       : step === 2
-        ? 'Drag to the Linkam stage'
+        ? 'Click to the Linkam stage'
         : 'Run heating and cooling';
 
   const scienceText = activeProcess
@@ -151,8 +151,8 @@ export default function App() {
 
   function resetAll() {
     setStep(0);
-    setDragItem(null);
-    setFeedback('Drag the highlighted tool to the matching instrument.');
+    setClickItem(null);
+    setFeedback('Click the highlighted tool to the matching instrument.');
     setActiveProcess(null);
     setLastVideo(null);
     setCountdown(PROCESS_DURATIONS.heating);
@@ -160,25 +160,25 @@ export default function App() {
   }
 
   function addCurrentTool(target?: 'balance' | 'coverslips' | 'stage') {
-    if (step === 0 && dragItem === 'powder' && target === 'balance') {
+    if (step === 0 && ClickItem === 'powder' && target === 'balance') {
       setStep(1);
-      setDragItem(null);
-      setFeedback('Powder weighed. Now drag the weighed ROY powders 5 mg onto coverslips.');
+      setClickItem(null);
+      setFeedback('Powder weighed. Now Click the weighed ROY powders 5 mg onto coverslips.');
       showStepMessage(0);
       return;
     }
 
-    if (step === 1 && dragItem === 'weighed' && target === 'coverslips') {
+    if (step === 1 && ClickItem === 'weighed' && target === 'coverslips') {
       setStep(2);
-      setDragItem(null);
-      setFeedback('Sandwich sample made. Now drag the sandwich sample onto the Linkam stage.');
+      setClickItem(null);
+      setFeedback('Sandwich sample made. Now Click the sandwich sample onto the Linkam stage.');
       showStepMessage(1);
       return;
     }
 
-    if (step === 2 && dragItem === 'sandwich' && target === 'stage') {
+    if (step === 2 && ClickItem === 'sandwich' && target === 'stage') {
       setStep(3);
-      setDragItem(null);
+      setClickItem(null);
       setFeedback('Sample loaded. Start heating to melt ROY.');
       showStepMessage(2);
       return;
@@ -190,14 +190,14 @@ export default function App() {
   function tapActiveItem() {
     if (currentItem === 'powder' && step === 0) {
       setStep(1);
-      setFeedback('Powder weighed. Now drag the weighed ROY powders 5 mg onto coverslips.');
+      setFeedback('Powder weighed. Now Click the weighed ROY powders 5 mg onto coverslips.');
       showStepMessage(0);
       return;
     }
 
     if (currentItem === 'weighed' && step === 1) {
       setStep(2);
-      setFeedback('Sandwich sample made. Now drag the sandwich sample onto the Linkam stage.');
+      setFeedback('Sandwich sample made. Now Click the sandwich sample onto the Linkam stage.');
       showStepMessage(1);
       return;
     }
@@ -247,7 +247,7 @@ export default function App() {
       </header>
 
       <section className="sim-shell" aria-label="ROY crystallisation simulation">
-        <aside className="toolbox panel" aria-label="Draggable tools">
+        <aside className="toolbox panel" aria-label="Clickgable tools">
           <div className="panel-title">
             <p className="eyebrow">Tools</p>
             <h2>{toolHeading}</h2>
@@ -256,11 +256,11 @@ export default function App() {
           <div className="tool-list">
             <button
               type="button"
-              draggable={currentItem === 'powder'}
-              onDragStart={() => currentItem === 'powder' && setDragItem('powder')}
+              Clickgable={currentItem === 'powder'}
+              onClickStart={() => currentItem === 'powder' && setClickItem('powder')}
               onClick={() => currentItem === 'powder' && tapActiveItem()}
               className={`tool-card ${currentItem === 'powder' ? 'active' : step > 0 ? 'done' : 'locked'}`}
-              aria-label="Drag ROY powder to the balance"
+              aria-label="Click ROY powder to the balance"
             >
               <PictureWithFallback
                 src={PICTURE_PATHS.royPowder}
@@ -268,16 +268,16 @@ export default function App() {
                 className="tool-picture"
                 fallback={<span className="missing-asset">ROY powder</span>}
               />
-              <Move size={18} className="drag-hint" />
+              <Move size={18} className="Click-hint" />
             </button>
 
             <button
               type="button"
-              draggable={currentItem === 'weighed'}
-              onDragStart={() => currentItem === 'weighed' && setDragItem('weighed')}
+              Clickgable={currentItem === 'weighed'}
+              onClickStart={() => currentItem === 'weighed' && setClickItem('weighed')}
               onClick={() => currentItem === 'weighed' && tapActiveItem()}
               className={`tool-card weighed-tool-card ${currentItem === 'weighed' ? 'active' : step > 1 ? 'done' : 'locked'}`}
-              aria-label="Drag the weighed ROY powders 5 mg onto coverslips"
+              aria-label="Click the weighed ROY powders 5 mg onto coverslips"
             >
               <PictureWithFallback
                 src={PICTURE_PATHS.weighedRoySample}
@@ -285,16 +285,16 @@ export default function App() {
                 className="tool-picture weighed-tool-picture"
                 fallback={<span className="missing-asset">weighed ROY powders 5 mg</span>}
               />
-              <Move size={18} className="drag-hint" />
+              <Move size={18} className="Click-hint" />
             </button>
 
             <button
               type="button"
-              draggable={currentItem === 'sandwich'}
-              onDragStart={() => currentItem === 'sandwich' && setDragItem('sandwich')}
+              Clickgable={currentItem === 'sandwich'}
+              onClickStart={() => currentItem === 'sandwich' && setClickItem('sandwich')}
               onClick={() => currentItem === 'sandwich' && tapActiveItem()}
               className={`tool-card ${currentItem === 'sandwich' ? 'active' : step > 2 ? 'done' : 'locked'}`}
-              aria-label="Drag the coverslip sandwich onto the Linkam stage"
+              aria-label="Click the coverslip sandwich onto the Linkam stage"
             >
               <PictureWithFallback
                 src={PICTURE_PATHS.coverslipSandwich}
@@ -302,12 +302,12 @@ export default function App() {
                 className="tool-picture"
                 fallback={<span className="missing-asset">sandwich sample</span>}
               />
-              <Move size={18} className="drag-hint" />
+              <Move size={18} className="Click-hint" />
             </button>
           </div>
 
           <div className="tool-tip">
-            <Sparkles size={16} /> The glowing tool is active. Drag it to the highlighted station.
+            <Sparkles size={16} /> The glowing tool is active. Click it to the highlighted station.
           </div>
         </aside>
 
@@ -353,7 +353,7 @@ export default function App() {
                 <div className="bench-stations">
                   <article
                     className={`bench-station ${step === 0 ? 'target' : ''} ${step > 0 ? 'complete' : ''}`}
-                    onDragOver={(e) => e.preventDefault()}
+                    onClickOver={(e) => e.preventDefault()}
                     onDrop={() => addCurrentTool('balance')}
                   >
                     <div className="station-image-frame">
@@ -370,7 +370,7 @@ export default function App() {
 
                   <article
                     className={`bench-station ${step === 1 ? 'target' : ''} ${step > 1 ? 'complete' : ''}`}
-                    onDragOver={(e) => e.preventDefault()}
+                    onClickOver={(e) => e.preventDefault()}
                     onDrop={() => addCurrentTool('coverslips')}
                   >
                     <div className="station-image-frame">
@@ -387,7 +387,7 @@ export default function App() {
 
                   <article
                     className={`bench-station ${step === 2 ? 'target' : ''} ${step > 2 ? 'complete' : ''}`}
-                    onDragOver={(e) => e.preventDefault()}
+                    onClickOver={(e) => e.preventDefault()}
                     onDrop={() => addCurrentTool('stage')}
                   >
                     <div className="station-image-frame">
