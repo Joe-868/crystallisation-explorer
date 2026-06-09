@@ -29,19 +29,19 @@ const processNotes: Record<Exclude<ProcessKey, null>, string> = {
 };
 
 const PICTURE_PATHS = {
-  royPowder: '/pictures/roy-powder.png',
-  weighedRoySample: '/pictures/weighed%20ROY%20powder.PNG',
-  coverslips: '/pictures/CoverSlips.png',
-  coverslipSandwich: '/pictures/coverslip-sandwich.png',
-  analyticalBalance: '/pictures/analytical-balance.png',
-  linkamHotstage: '/pictures/linkam-stage.png',
-  sampleLoaded: '/pictures/sample%20loaded.png',
+  royPowder: '/crystallisation-explorer/pictures/roy-powder.png',
+  weighedRoySample: '/crystallisation-explorer/pictures/weighed%20ROY%20powder.PNG',
+  coverslips: '/crystallisation-explorer/pictures/CoverSlips.png',
+  coverslipSandwich: '/crystallisation-explorer/pictures/coverslip-sandwich.png',
+  analyticalBalance: '/crystallisation-explorer/pictures/analytical-balance.png',
+  linkamHotstage: '/crystallisation-explorer/pictures/linkam-stage.png',
+  sampleLoaded: '/crystallisation-explorer/pictures/sample%20loaded.png',
 };
 
 const VIDEO_PATHS = {
-  heating: '/videos/heating.mp4?v=20250608',
-  cooling: '/videos/cooling.mp4?v=20250608',
-  reheating: '/videos/reheating.mp4?v=20250608',
+  heating: '/crystallisation-explorer/videos/heating.mp4?v=20250608',
+  cooling: '/crystallisation-explorer/videos/cooling.mp4?v=20250608',
+  reheating: '/crystallisation-explorer/videos/reheating.mp4?v=20250608',
 } as const;
 
 const PROCESS_DURATIONS = {
