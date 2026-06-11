@@ -55,3 +55,7 @@ The interpolated "≈ XX °C" badge has been removed (the edited footage made th
 ## v8 — copy fix + quick-play Videos menu
 - "ROY melts at about 110 °C…" → "ROY melts at its melting point into a red liquid." The matching flash message ("…at about 110 °C") was updated the same way for consistency.
 - New "Videos" button next to Reset: opens a small menu (Heating / Cooling / Reheating) that jumps straight to any video without doing the prep steps — designed for presenting at events. The experiment state moves to the matching stage, so after a quick-played video finishes, the normal flow simply continues from there.
+
+## v9 — Videos dropdown fix
+- The dropdown was being painted underneath the Guide/sim panels: every panel (and the header) uses backdrop-filter, which creates its own stacking context, and the header had no z-index, so later siblings covered the menu. Fixed with `.sim-header { position: relative; z-index: 200; }` — the menu now floats above all page content.
+- Durations removed from the menu labels: now just "Heating · melt", "Cooling · crystals", "Reheating · transformations".

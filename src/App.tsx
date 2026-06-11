@@ -310,9 +310,9 @@ export default function App() {
             </button>
             {showVideoMenu && (
               <div className="video-menu" role="menu">
-                <button type="button" role="menuitem" onClick={() => quickPlay('heating')}>Heating · melt ({PROCESS_DURATIONS.heating} s)</button>
-                <button type="button" role="menuitem" onClick={() => quickPlay('cooling')}>Cooling · crystals ({PROCESS_DURATIONS.cooling} s)</button>
-                <button type="button" role="menuitem" onClick={() => quickPlay('reheating')}>Reheating · transformations ({PROCESS_DURATIONS.reheating} s)</button>
+                <button type="button" role="menuitem" onClick={() => quickPlay('heating')}>Heating · melt</button>
+                <button type="button" role="menuitem" onClick={() => quickPlay('cooling')}>Cooling · crystals</button>
+                <button type="button" role="menuitem" onClick={() => quickPlay('reheating')}>Reheating · transformations</button>
               </div>
             )}
           </div>

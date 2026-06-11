@@ -1412,3 +1412,10 @@ h2,
 .video-menu button:hover {
   background: #e8f1fd;
 }
+
+/* Lift the header above the panels (they all create stacking contexts via
+   backdrop-filter) so the Videos dropdown floats over the page content. */
+.sim-header {
+  position: relative;
+  z-index: 200;
+}
