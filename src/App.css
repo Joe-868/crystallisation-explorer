@@ -1313,3 +1313,64 @@ h2,
     line-height: 1.32 !important;
   }
 }
+
+/* ===== New elements: subtitle, temperature badge ===== */
+.header-subtitle {
+  margin: 0.35rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+  color: #5b7aa6;
+}
+
+.badge-group {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.temp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ffe5d6, #ffd1c4);
+  color: #b03a2e;
+  font-weight: 800;
+  font-size: 0.9rem;
+  border: 1px solid rgba(176, 58, 46, 0.25);
+}
+
+
+.video-fallback {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 1.1rem 1.2rem;
+  border-radius: 16px;
+  background: rgba(255, 244, 230, 0.95);
+  border: 1px solid rgba(196, 120, 50, 0.35);
+  color: #8a5320;
+  font-weight: 700;
+  line-height: 1.45;
+}
+.video-fallback p { margin: 0; }
+
+.preload-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  background: #eef3fb;
+  color: #5b7aa6;
+  font-weight: 750;
+  font-size: 0.85rem;
+  border: 1px dashed rgba(91, 138, 204, 0.45);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}

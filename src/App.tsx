@@ -1,53 +1,66 @@
-import { Check, FlaskConical, Move, RotateCcw, Sparkles, Thermometer, TimerReset } from 'lucide-react';
+import { Check, FlaskConical, MousePointerClick, RotateCcw, Sparkles, Thermometer, TimerReset } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 
 type SimItem = 'powder' | 'weighed' | 'sandwich' | null;
 type ProcessKey = 'heating' | 'cooling' | 'reheating' | null;
 
+const BASE = import.meta.env.BASE_URL;
+
 const guideSteps = [
-  'Click the ROY powder to the analytical balance.',
-  'Click the weighed ROY powders 5 mg onto the coverslips.',
-  'Click the coverslip sandwich onto the Linkam stage.',
-  'Heat the loaded sample and watch melting.',
-  'Cool the melt and watch crystals grow.',
-  'Reheat the sample and watch the phase changes.'
+  'Click the glowing ROY powder to weigh about 5 mg on the analytical balance.',
+  'Click the weighed powder to sandwich it between two glass coverslips.',
+  'Click the coverslip sandwich to load it onto the Linkam hot-stage.',
+  'Heat the sample and watch the yellow solid melt into a red liquid.',
+  'Cool the melt and watch crystals nucleate and grow.',
+  'Reheat the sample and watch the crystal forms transform.'
 ];
 
 const flashMessages = [
-  'ROY powder transferred to the analytical balance. The balance reads approximately 5 mg.',
-  'The 5 mg ROY sample is placed between coverslips to form a sandwich sample.',
-  'The sandwich sample is loaded onto the Linkam stage.',
-  'Heating complete: yellow ROY has melted into a red liquid.',
-  'Cooling complete: ROY molecules have organised into crystals.',
-  'Reheating complete: crystals, new forms, melting, and further transformation were observed.'
+  'ROY powder transferred to the analytical balance. The balance reads about 5 mg.',
+  'The 5 mg ROY sample is sandwiched between two coverslips.',
+  'The sandwich sample is loaded onto the Linkam hot-stage.',
+  'Heating complete: yellow ROY has melted into a red liquid at about 110 °C.',
+  'Cooling complete: ROY molecules have organised themselves into crystals.',
+  'Reheating complete: you saw crystals transform into new forms, melt, and transform again!'
 ];
 
 const processNotes: Record<Exclude<ProcessKey, null>, string> = {
-  heating: 'Heating disrupts the ordered crystal structure. ROY reaches its melting point and becomes a red molten liquid.',
-  cooling: 'Cooling lets ROY molecules reorganise into an ordered crystal lattice. Nucleation happens first, then crystal growth spreads.',
-  reheating: 'Reheating can trigger crystals → new forms → melt → new form → melt behaviour in ROY.'
+  heating: 'Heating gives the molecules more energy until the ordered crystal structure breaks down. ROY melts at about 110 °C into a red liquid.',
+  cooling: 'Cooling lets ROY molecules reorganise into an ordered crystal lattice. A few molecules cluster together first (nucleation), then crystal growth spreads outwards.',
+  reheating: 'ROY is polymorphic: on reheating, one crystal form can melt or transform into another more stable form — crystals → new forms → melt → new form → melt.'
 };
 
 const PICTURE_PATHS = {
-  royPowder: '/crystallisation-explorer/pictures/roy-powder.png',
-  weighedRoySample: '/crystallisation-explorer/pictures/weighed%20ROY%20powder.PNG',
-  coverslips: '/crystallisation-explorer/pictures/CoverSlips.png',
-  coverslipSandwich: '/crystallisation-explorer/pictures/coverslip-sandwich.png',
-  analyticalBalance: '/crystallisation-explorer/pictures/analytical-balance.png',
-  linkamHotstage: '/crystallisation-explorer/pictures/linkam-stage.png',
-  sampleLoaded: '/crystallisation-explorer/pictures/sample%20loaded.png',
+  royPowder: `${BASE}pictures/roy-powder.png`,
+  weighedRoySample: `${BASE}pictures/weighed%20ROY%20powder.PNG`,
+  coverslips: `${BASE}pictures/CoverSlips.png`,
+  coverslipSandwich: `${BASE}pictures/coverslip-sandwich.png`,
+  analyticalBalance: `${BASE}pictures/analytical-balance.png`,
+  linkamHotstage: `${BASE}pictures/linkam-stage.png`,
+  sampleLoaded: `${BASE}pictures/sample%20loaded.png`,
 };
 
 const VIDEO_PATHS = {
-  heating: '/crystallisation-explorer/videos/heating.mp4?v=20250608',
-  cooling: '/crystallisation-explorer/videos/cooling.mp4?v=20250608',
-  reheating: '/crystallisation-explorer/videos/reheating.mp4?v=20250608',
+  heating: `${BASE}videos/heating.mp4?v=20260611`,
+  cooling: `${BASE}videos/cooling.mp4?v=20260611`,
+  reheating: `${BASE}videos/reheating.mp4?v=20260611`,
 } as const;
 
+// Actual video lengths in seconds (measured with ffprobe). Step completion is
+// driven by the video's onEnded event, so these are only used for: the initial
+// countdown value, the "Next: …" hints, and the timer fallback if a video
+// fails to load. Keep them in sync if the videos are ever re-edited.
 const PROCESS_DURATIONS = {
-  heating: 14,
+  heating: 19,
   cooling: 5,
-  reheating: 34,
+  reheating: 76,
+} as const;
+
+// Approximate Linkam stage temperatures for the readout (°C)
+const TEMP_PROFILES = {
+  heating: { from: 25, to: 115 },
+  cooling: { from: 115, to: 25 },
+  reheating: { from: 25, to: 130 },
 } as const;
 
 function PictureWithFallback({
@@ -73,17 +86,58 @@ function PictureWithFallback({
 
 export default function App() {
   const [step, setStep] = useState(0);
-  const [ClickItem, setClickItem] = useState<SimItem>(null);
-  const [feedback, setFeedback] = useState('Click the highlighted tool to the matching instrument.');
+  const [feedback, setFeedback] = useState('Click the glowing tool to carry out the highlighted step.');
   const [activeProcess, setActiveProcess] = useState<ProcessKey>(null);
   const [lastVideo, setLastVideo] = useState<ProcessKey>(null);
   const [countdown, setCountdown] = useState<number>(PROCESS_DURATIONS.heating);
+  const [progress, setProgress] = useState(0); // 0–1, drives the temperature readout
+  const [videoFailed, setVideoFailed] = useState(false);
   const [flashText, setFlashText] = useState<string | null>(null);
+  const [preloadedVideos, setPreloadedVideos] = useState<Partial<Record<Exclude<ProcessKey, null>, string>>>({});
+  const [preloadSettled, setPreloadSettled] = useState(0);
+
+  // Preload all three videos in the background while pupils do the prep steps,
+  // so playback starts instantly even on slow venue wifi.
+  useEffect(() => {
+    let cancelled = false;
+    const objectUrls: string[] = [];
+
+    (Object.entries(VIDEO_PATHS) as [Exclude<ProcessKey, null>, string][]).forEach(([processKey, path]) => {
+      fetch(path)
+        .then((response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.blob();
+        })
+        .then((blob) => {
+          if (cancelled) return;
+          const objectUrl = URL.createObjectURL(blob);
+          objectUrls.push(objectUrl);
+          setPreloadedVideos((previous) => ({ ...previous, [processKey]: objectUrl }));
+          setPreloadSettled((count) => count + 1);
+        })
+        .catch(() => {
+          // Preload failed — the <video> will stream from the network as before.
+          if (!cancelled) setPreloadSettled((count) => count + 1);
+        });
+    });
+
+    return () => {
+      cancelled = true;
+      objectUrls.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
+    };
+  }, []);
 
   const currentItem: SimItem = step === 0 ? 'powder' : step === 1 ? 'weighed' : step === 2 ? 'sandwich' : null;
   const processRunning = activeProcess !== null;
   const displayVideo = activeProcess ?? lastVideo;
-  const videoSource = displayVideo ? VIDEO_PATHS[displayVideo] : null;
+  const videoSource = displayVideo ? (preloadedVideos[displayVideo] ?? VIDEO_PATHS[displayVideo]) : null;
+
+  // Live temperature readout, interpolated across the running process
+  const currentTemp = useMemo(() => {
+    if (!activeProcess) return null;
+    const { from, to } = TEMP_PROFILES[activeProcess];
+    return Math.round(from + (to - from) * Math.min(1, Math.max(0, progress)));
+  }, [activeProcess, progress]);
 
   useEffect(() => {
     if (!flashText) return;
@@ -91,38 +145,50 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [flashText]);
 
+  function finishProcess(process: Exclude<ProcessKey, null>) {
+    if (process === 'heating') {
+      setStep(4);
+      setFeedback('Heating complete. Now cool the red melt to form crystals.');
+      setFlashText(flashMessages[3]);
+    }
+    if (process === 'cooling') {
+      setStep(5);
+      setFeedback('Cooling complete. Now reheat the sample to observe further changes.');
+      setFlashText(flashMessages[4]);
+    }
+    if (process === 'reheating') {
+      setStep(6);
+      setFeedback('Reheating complete. You have seen the full ROY polymorphism cycle!');
+      setFlashText(flashMessages[5]);
+    }
+    setProgress(1);
+    setActiveProcess(null);
+  }
+
+  // Fallback only: if the video fails to load, fall back to a fixed-duration
+  // countdown so the experiment never gets stuck. When the video plays
+  // normally, onTimeUpdate/onEnded drive everything instead.
   useEffect(() => {
-    if (!processRunning) return;
+    if (!processRunning || !videoFailed || !activeProcess) return;
 
     if (countdown <= 0) {
-      if (activeProcess === 'heating') {
-        setStep(4);
-        setFeedback('Heating complete. Now cool the red melt to form crystals.');
-        setFlashText(flashMessages[3]);
-      }
-      if (activeProcess === 'cooling') {
-        setStep(5);
-        setFeedback('Cooling complete. Now reheat the sample to observe further changes.');
-        setFlashText(flashMessages[4]);
-      }
-      if (activeProcess === 'reheating') {
-        setStep(6);
-        setFeedback('Reheating complete. ROY showed crystals, new forms, melting, and further transformation.');
-        setFlashText(flashMessages[5]);
-      }
-      setActiveProcess(null);
+      finishProcess(activeProcess);
       return;
     }
 
-    const timer = window.setTimeout(() => setCountdown((value) => value - 1), 1000);
+    const total = PROCESS_DURATIONS[activeProcess];
+    const timer = window.setTimeout(() => {
+      setCountdown((value) => value - 1);
+      setProgress((total - (countdown - 1)) / total);
+    }, 1000);
     return () => window.clearTimeout(timer);
-  }, [processRunning, countdown, activeProcess]);
+  }, [processRunning, videoFailed, countdown, activeProcess]);
 
   const statusTitle = useMemo(() => {
     if (activeProcess === 'heating') return 'Heating: melting in progress';
     if (activeProcess === 'cooling') return 'Cooling: crystal growth in progress';
-    if (activeProcess === 'reheating') return 'Reheating: phase change in progress';
-    if (step >= 6) return 'Reheating complete';
+    if (activeProcess === 'reheating') return 'Reheating: phase changes in progress';
+    if (step >= 6) return 'Experiment complete — well done!';
     if (step >= 5) return 'Crystals formed';
     if (step === 4) return 'Red melt ready to cool';
     if (step === 3) return 'Sample loaded';
@@ -130,11 +196,11 @@ export default function App() {
   }, [activeProcess, step]);
 
   const toolHeading = step === 0
-    ? 'Click to the balance'
+    ? 'Weigh the powder'
     : step === 1
-      ? 'Click onto coverslips'
+      ? 'Make the sandwich'
       : step === 2
-        ? 'Click to the Linkam stage'
+        ? 'Load the hot-stage'
         : 'Run heating and cooling';
 
   const scienceText = activeProcess
@@ -143,69 +209,50 @@ export default function App() {
       ? 'ROY crystallisation shows how molecules arrange into ordered structures after cooling from the melt.'
       : step >= 4
         ? 'The sample has changed from yellow solid ROY into a red molten phase.'
-        : 'ROY is polymorphic: the same molecule can form different crystal structures, colours, and morphologies.';
+        : 'ROY is polymorphic: the same molecule can form different crystal structures, colours, and shapes.';
 
-  function showStepMessage(index: number) {
-    setFlashText(flashMessages[index]);
-  }
+  const timerBadge = processRunning
+    ? `${countdown}s left`
+    : step >= 6
+      ? 'Complete'
+      : step === 5
+        ? `Next: reheat (${PROCESS_DURATIONS.reheating} s)`
+        : step === 4
+          ? `Next: cool (${PROCESS_DURATIONS.cooling} s)`
+          : step === 3
+            ? `Next: heat (${PROCESS_DURATIONS.heating} s)`
+            : 'Set up the sample';
 
   function resetAll() {
     setStep(0);
-    setClickItem(null);
-    setFeedback('Click the highlighted tool to the matching instrument.');
+    setFeedback('Click the glowing tool to carry out the highlighted step.');
     setActiveProcess(null);
     setLastVideo(null);
     setCountdown(PROCESS_DURATIONS.heating);
+    setProgress(0);
+    setVideoFailed(false);
     setFlashText(null);
-  }
-
-  function addCurrentTool(target?: 'balance' | 'coverslips' | 'stage') {
-    if (step === 0 && ClickItem === 'powder' && target === 'balance') {
-      setStep(1);
-      setClickItem(null);
-      setFeedback('Powder weighed. Now Click the weighed ROY powders 5 mg onto coverslips.');
-      showStepMessage(0);
-      return;
-    }
-
-    if (step === 1 && ClickItem === 'weighed' && target === 'coverslips') {
-      setStep(2);
-      setClickItem(null);
-      setFeedback('Sandwich sample made. Now Click the sandwich sample onto the Linkam stage.');
-      showStepMessage(1);
-      return;
-    }
-
-    if (step === 2 && ClickItem === 'sandwich' && target === 'stage') {
-      setStep(3);
-      setClickItem(null);
-      setFeedback('Sample loaded. Start heating to melt ROY.');
-      showStepMessage(2);
-      return;
-    }
-
-    setFeedback('Try the highlighted station: powder → balance, 5 mg sample → coverslips, sandwich → Linkam stage.');
   }
 
   function tapActiveItem() {
     if (currentItem === 'powder' && step === 0) {
       setStep(1);
-      setFeedback('Powder weighed. Now Click the weighed ROY powders 5 mg onto coverslips.');
-      showStepMessage(0);
+      setFeedback('Powder weighed. Now click the weighed 5 mg sample to place it between coverslips.');
+      setFlashText(flashMessages[0]);
       return;
     }
 
     if (currentItem === 'weighed' && step === 1) {
       setStep(2);
-      setFeedback('Sandwich sample made. Now Click the sandwich sample onto the Linkam stage.');
-      showStepMessage(1);
+      setFeedback('Sandwich sample made. Now click the sandwich to load it onto the Linkam hot-stage.');
+      setFlashText(flashMessages[1]);
       return;
     }
 
     if (currentItem === 'sandwich' && step === 2) {
       setStep(3);
-      setFeedback('Sample loaded. Start heating to melt ROY.');
-      showStepMessage(2);
+      setFeedback('Sample loaded. Press "Heat sample" to melt the ROY.');
+      setFlashText(flashMessages[2]);
     }
   }
 
@@ -217,19 +264,21 @@ export default function App() {
     setActiveProcess(process);
     setLastVideo(process);
     setCountdown(PROCESS_DURATIONS[process]);
+    setProgress(0);
+    setVideoFailed(false);
     setFlashText(
       process === 'heating'
-        ? 'Heating started: watch the yellow solid change into red melt.'
+        ? 'Heating started: watch the yellow solid change into a red melt.'
         : process === 'cooling'
           ? 'Cooling started: watch crystal nucleation and growth.'
-          : 'Reheating started: watch crystals, new forms, melting, and transformation.'
+          : 'Reheating started: watch crystals transform, melt, and transform again.'
     );
     setFeedback(
       process === 'heating'
-        ? 'Heating for 14 seconds...'
+        ? `Heating for about ${PROCESS_DURATIONS.heating} seconds…`
         : process === 'cooling'
-          ? 'Cooling for 5 seconds...'
-          : 'Reheating for 34 seconds...'
+          ? `Cooling for about ${PROCESS_DURATIONS.cooling} seconds…`
+          : `Reheating for about ${PROCESS_DURATIONS.reheating} seconds…`
     );
   }
 
@@ -239,6 +288,7 @@ export default function App() {
         <div>
           <p className="eyebrow">Interactive crystallisation simulator</p>
           <h1>Crystallisation Explorer</h1>
+          <p className="header-subtitle">ROY = Red, Orange &amp; Yellow — one molecule, many crystal colours</p>
         </div>
 
         <button type="button" className="reset-button" onClick={resetAll}>
@@ -247,7 +297,7 @@ export default function App() {
       </header>
 
       <section className="sim-shell" aria-label="ROY crystallisation simulation">
-        <aside className="toolbox panel" aria-label="Clickgable tools">
+        <aside className="toolbox panel" aria-label="Sample preparation tools">
           <div className="panel-title">
             <p className="eyebrow">Tools</p>
             <h2>{toolHeading}</h2>
@@ -256,11 +306,10 @@ export default function App() {
           <div className="tool-list">
             <button
               type="button"
-              Clickgable={currentItem === 'powder'}
-              onClickStart={() => currentItem === 'powder' && setClickItem('powder')}
-              onClick={() => currentItem === 'powder' && tapActiveItem()}
+              disabled={currentItem !== 'powder'}
+              onClick={tapActiveItem}
               className={`tool-card ${currentItem === 'powder' ? 'active' : step > 0 ? 'done' : 'locked'}`}
-              aria-label="Click ROY powder to the balance"
+              aria-label="Weigh the ROY powder on the analytical balance"
             >
               <PictureWithFallback
                 src={PICTURE_PATHS.royPowder}
@@ -268,33 +317,31 @@ export default function App() {
                 className="tool-picture"
                 fallback={<span className="missing-asset">ROY powder</span>}
               />
-              <Move size={18} className="Click-hint" />
+              <MousePointerClick size={18} className="Click-hint" />
             </button>
 
             <button
               type="button"
-              Clickgable={currentItem === 'weighed'}
-              onClickStart={() => currentItem === 'weighed' && setClickItem('weighed')}
-              onClick={() => currentItem === 'weighed' && tapActiveItem()}
+              disabled={currentItem !== 'weighed'}
+              onClick={tapActiveItem}
               className={`tool-card weighed-tool-card ${currentItem === 'weighed' ? 'active' : step > 1 ? 'done' : 'locked'}`}
-              aria-label="Click the weighed ROY powders 5 mg onto coverslips"
+              aria-label="Place the weighed 5 mg ROY sample between coverslips"
             >
               <PictureWithFallback
                 src={PICTURE_PATHS.weighedRoySample}
-                alt="Weighed ROY powders 5 mg on coverslips"
+                alt="Weighed 5 mg ROY sample on a coverslip"
                 className="tool-picture weighed-tool-picture"
-                fallback={<span className="missing-asset">weighed ROY powders 5 mg</span>}
+                fallback={<span className="missing-asset">weighed ROY powder, 5 mg</span>}
               />
-              <Move size={18} className="Click-hint" />
+              <MousePointerClick size={18} className="Click-hint" />
             </button>
 
             <button
               type="button"
-              Clickgable={currentItem === 'sandwich'}
-              onClickStart={() => currentItem === 'sandwich' && setClickItem('sandwich')}
-              onClick={() => currentItem === 'sandwich' && tapActiveItem()}
+              disabled={currentItem !== 'sandwich'}
+              onClick={tapActiveItem}
               className={`tool-card ${currentItem === 'sandwich' ? 'active' : step > 2 ? 'done' : 'locked'}`}
-              aria-label="Click the coverslip sandwich onto the Linkam stage"
+              aria-label="Load the coverslip sandwich onto the Linkam hot-stage"
             >
               <PictureWithFallback
                 src={PICTURE_PATHS.coverslipSandwich}
@@ -302,12 +349,12 @@ export default function App() {
                 className="tool-picture"
                 fallback={<span className="missing-asset">sandwich sample</span>}
               />
-              <Move size={18} className="Click-hint" />
+              <MousePointerClick size={18} className="Click-hint" />
             </button>
           </div>
 
           <div className="tool-tip">
-            <Sparkles size={16} /> The glowing tool is active. Click it to the highlighted station.
+            <Sparkles size={16} /> The glowing tool is the next step. Click it to move the experiment on.
           </div>
         </aside>
 
@@ -317,7 +364,19 @@ export default function App() {
               <p className="eyebrow">Experiment station</p>
               <h2>{statusTitle}</h2>
             </div>
-            <div className="timer-badge"><TimerReset size={16} /> {processRunning ? `${countdown}s` : step >= 5 ? '34s reheating' : step >= 4 ? '5s cooling' : '14s heating'}</div>
+            <div className="badge-group">
+              {preloadSettled < Object.keys(VIDEO_PATHS).length && (
+                <div className="preload-badge" role="status">
+                  Loading videos… {preloadSettled}/{Object.keys(VIDEO_PATHS).length}
+                </div>
+              )}
+              {currentTemp !== null && (
+                <div className="temp-badge" role="status" aria-label={`Stage temperature about ${currentTemp} degrees Celsius`}>
+                  <Thermometer size={16} /> ≈ {currentTemp} °C
+                </div>
+              )}
+              <div className="timer-badge"><TimerReset size={16} /> {timerBadge}</div>
+            </div>
           </div>
 
           <div className="station-canvas">
@@ -330,15 +389,36 @@ export default function App() {
                   </div>
                 </div>
 
-                <video
-                  key={`${displayVideo}-${videoSource}`}
-                  autoPlay
-                  muted
-                  playsInline
-                  className="video-player"
-                >
-                  <source src={videoSource ?? undefined} type="video/mp4" />
-                </video>
+                {videoFailed ? (
+                  <div className="video-fallback" role="alert">
+                    <FlaskConical size={22} />
+                    <p>
+                      The microscopy video couldn't load, so the experiment is running on a
+                      timer instead — {processRunning ? `${countdown}s remaining.` : 'this stage has finished.'}
+                    </p>
+                  </div>
+                ) : (
+                  <video
+                    key={displayVideo ?? 'none'}
+                    autoPlay
+                    muted
+                    playsInline
+                    controls
+                    className="video-player"
+                    onTimeUpdate={(e) => {
+                      const v = e.currentTarget;
+                      if (!processRunning || !Number.isFinite(v.duration) || v.duration <= 0) return;
+                      setCountdown(Math.max(0, Math.ceil(v.duration - v.currentTime)));
+                      setProgress(v.currentTime / v.duration);
+                    }}
+                    onEnded={() => {
+                      if (activeProcess) finishProcess(activeProcess);
+                    }}
+                    onError={() => setVideoFailed(true)}
+                  >
+                    <source src={videoSource ?? undefined} type="video/mp4" onError={() => setVideoFailed(true)} />
+                  </video>
+                )}
 
                 <div className="video-science-card">
                   <FlaskConical size={18} />
@@ -349,63 +429,49 @@ export default function App() {
                 </div>
               </div>
             ) : (
-              <>
-                <div className="bench-stations">
-                  <article
-                    className={`bench-station ${step === 0 ? 'target' : ''} ${step > 0 ? 'complete' : ''}`}
-                    onClickOver={(e) => e.preventDefault()}
-                    onDrop={() => addCurrentTool('balance')}
-                  >
-                    <div className="station-image-frame">
-                      <PictureWithFallback
-                        src={PICTURE_PATHS.analyticalBalance}
-                        alt="Analytical balance"
-                        className="station-photo balance-photo"
-                        fallback={<span className="missing-asset">Analytical balance</span>}
-                      />
-                      {step > 0 && <div className="station-result">Weighed ROY powders · 5 mg</div>}
-                    </div>
-                    <span className="station-label">1. Analytical balance</span>
-                  </article>
+              <div className="bench-stations">
+                <article className={`bench-station ${step === 0 ? 'target' : ''} ${step > 0 ? 'complete' : ''}`}>
+                  <div className="station-image-frame">
+                    <PictureWithFallback
+                      src={PICTURE_PATHS.analyticalBalance}
+                      alt="Analytical balance"
+                      className="station-photo balance-photo"
+                      fallback={<span className="missing-asset">Analytical balance</span>}
+                    />
+                    {step > 0 && <div className="station-result">Weighed ROY powder · 5 mg</div>}
+                  </div>
+                  <span className="station-label">1. Analytical balance</span>
+                </article>
 
-                  <article
-                    className={`bench-station ${step === 1 ? 'target' : ''} ${step > 1 ? 'complete' : ''}`}
-                    onClickOver={(e) => e.preventDefault()}
-                    onDrop={() => addCurrentTool('coverslips')}
-                  >
-                    <div className="station-image-frame">
-                      <PictureWithFallback
-                        src={step > 1 ? PICTURE_PATHS.coverslipSandwich : PICTURE_PATHS.coverslips}
-                        alt={step > 1 ? 'ROY sandwich sample' : 'coverslips'}
-                        className="station-photo coverslip-photo"
-                        fallback={<span className="missing-asset">{step > 1 ? 'Sandwich sample' : 'Coverslips'}</span>}
-                      />
-                      {step > 1 && <div className="station-result">Sandwich sample made</div>}
-                    </div>
-                    <span className="station-label">2. Coverslips</span>
-                  </article>
+                <article className={`bench-station ${step === 1 ? 'target' : ''} ${step > 1 ? 'complete' : ''}`}>
+                  <div className="station-image-frame">
+                    <PictureWithFallback
+                      src={step > 1 ? PICTURE_PATHS.coverslipSandwich : PICTURE_PATHS.coverslips}
+                      alt={step > 1 ? 'ROY sandwich sample' : 'Glass coverslips'}
+                      className="station-photo coverslip-photo"
+                      fallback={<span className="missing-asset">{step > 1 ? 'Sandwich sample' : 'Coverslips'}</span>}
+                    />
+                    {step > 1 && <div className="station-result">Sandwich sample made</div>}
+                  </div>
+                  <span className="station-label">2. Coverslips</span>
+                </article>
 
-                  <article
-                    className={`bench-station ${step === 2 ? 'target' : ''} ${step > 2 ? 'complete' : ''}`}
-                    onClickOver={(e) => e.preventDefault()}
-                    onDrop={() => addCurrentTool('stage')}
-                  >
-                    <div className="station-image-frame">
-                      <PictureWithFallback
-                        src={step > 2 ? PICTURE_PATHS.sampleLoaded : PICTURE_PATHS.linkamHotstage}
-                        alt={step > 2 ? 'sample loaded on Linkam stage' : 'Linkam stage'}
-                        className="station-photo linkam-photo"
-                        fallback={<span className="missing-asset">{step > 2 ? 'Sample loaded' : 'Linkam stage'}</span>}
-                      />
-                      {step > 2 && <div className="station-result">Sample loaded</div>}
-                    </div>
-                    <span className="station-label">3. Linkam stage</span>
-                  </article>
-                </div>
-
-                {flashText && <div className="science-popup">{flashText}</div>}
-              </>
+                <article className={`bench-station ${step === 2 ? 'target' : ''} ${step > 2 ? 'complete' : ''}`}>
+                  <div className="station-image-frame">
+                    <PictureWithFallback
+                      src={step > 2 ? PICTURE_PATHS.sampleLoaded : PICTURE_PATHS.linkamHotstage}
+                      alt={step > 2 ? 'Sample loaded on the Linkam hot-stage' : 'Linkam hot-stage'}
+                      className="station-photo linkam-photo"
+                      fallback={<span className="missing-asset">{step > 2 ? 'Sample loaded' : 'Linkam stage'}</span>}
+                    />
+                    {step > 2 && <div className="station-result">Sample loaded</div>}
+                  </div>
+                  <span className="station-label">3. Linkam hot-stage</span>
+                </article>
+              </div>
             )}
+
+            {flashText && <div className="science-popup">{flashText}</div>}
           </div>
 
           <div className="control-strip">
@@ -416,13 +482,13 @@ export default function App() {
               <Sparkles size={17} /> Cool sample
             </button>
             <button type="button" disabled={step !== 5 || processRunning} onClick={() => startProcess('reheating')} className="reheat-button">
-              <Thermometer size={17} /> Reheating sample
+              <Thermometer size={17} /> Reheat sample
             </button>
-            <div className="feedback-bar">{feedback}</div>
+            <div className="feedback-bar" role="status" aria-live="polite">{feedback}</div>
           </div>
         </section>
 
-        <aside className="guide panel" aria-label="Step guide and scientific explanation">
+        <aside className="guide panel" aria-label="Step guide">
           <div className="panel-title">
             <p className="eyebrow">Guide</p>
             <h2>What to do</h2>
@@ -436,7 +502,6 @@ export default function App() {
               </li>
             ))}
           </ol>
-
 
         </aside>
       </section>
