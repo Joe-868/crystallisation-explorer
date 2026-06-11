@@ -1371,3 +1371,44 @@ h2,
   font-style: italic;
   opacity: 0.75;
 }
+
+.header-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.video-menu-wrap { position: relative; }
+
+.video-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 50;
+  display: grid;
+  gap: 0.3rem;
+  min-width: 240px;
+  padding: 0.45rem;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid rgba(95, 157, 225, 0.30);
+  box-shadow: 0 16px 36px rgba(31, 53, 93, 0.18);
+}
+
+.video-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.55rem 0.7rem;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #1f355d;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.video-menu button:hover {
+  background: #e8f1fd;
+}

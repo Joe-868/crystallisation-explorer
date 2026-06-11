@@ -51,3 +51,7 @@ Temperature readout updated to the actual Linkam programme: heating 30→130 °C
 
 ## v7 — live temperature readout removed
 The interpolated "≈ XX °C" badge has been removed (the edited footage made the live number too far from reality). The accurate programme information stays as a static note under each video title: e.g. "30 → 130 °C at 30 °C/min — footage condensed". The Thermometer icons on the Heat/Reheat buttons are unchanged.
+
+## v8 — copy fix + quick-play Videos menu
+- "ROY melts at about 110 °C…" → "ROY melts at its melting point into a red liquid." The matching flash message ("…at about 110 °C") was updated the same way for consistency.
+- New "Videos" button next to Reset: opens a small menu (Heating / Cooling / Reheating) that jumps straight to any video without doing the prep steps — designed for presenting at events. The experiment state moves to the matching stage, so after a quick-played video finishes, the normal flow simply continues from there.

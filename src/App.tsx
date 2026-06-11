@@ -1,4 +1,4 @@
-import { Check, FlaskConical, MousePointerClick, RotateCcw, Sparkles, Thermometer, TimerReset } from 'lucide-react';
+import { Check, FlaskConical, MousePointerClick, Play, RotateCcw, Sparkles, Thermometer, TimerReset } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 
 type SimItem = 'powder' | 'weighed' | 'sandwich' | null;
@@ -19,13 +19,13 @@ const flashMessages = [
   'ROY powder transferred to the analytical balance. The balance reads about 5 mg.',
   'The 5 mg ROY sample is sandwiched between two coverslips.',
   'The sandwich sample is loaded onto the Linkam hot-stage.',
-  'Heating complete: yellow ROY has melted into a red liquid at about 110 °C.',
+  'Heating complete: yellow ROY has melted into a red liquid at its melting point.',
   'Cooling complete: ROY molecules have organised themselves into crystals.',
   'Reheating complete: you saw crystals transform into new forms, melt, and transform again!'
 ];
 
 const processNotes: Record<Exclude<ProcessKey, null>, string> = {
-  heating: 'Heating gives the molecules more energy until the ordered crystal structure breaks down. ROY melts at about 110 °C into a red liquid.',
+  heating: 'Heating gives the molecules more energy until the ordered crystal structure breaks down. ROY melts at its melting point into a red liquid.',
   cooling: 'Cooling lets ROY molecules reorganise into an ordered crystal lattice. A few molecules cluster together first (nucleation), then crystal growth spreads outwards.',
   reheating: 'ROY is polymorphic: on reheating, one crystal form can melt or transform into another more stable form — crystals → new forms → melt → new form → melt.'
 };
@@ -99,6 +99,7 @@ export default function App() {
   const [flashText, setFlashText] = useState<string | null>(null);
   const [preloadedVideos, setPreloadedVideos] = useState<Partial<Record<Exclude<ProcessKey, null>, string>>>({});
   const [preloadSettled, setPreloadSettled] = useState(0);
+  const [showVideoMenu, setShowVideoMenu] = useState(false);
 
   // Preload all three videos in the background while pupils do the prep steps,
   // so playback starts instantly even on slow venue wifi.
@@ -249,6 +250,19 @@ export default function App() {
     }
   }
 
+  // Demo shortcut: jump straight to any of the three videos without doing
+  // the prep steps — handy when presenting at outreach events.
+  function quickPlay(process: Exclude<ProcessKey, null>) {
+    setShowVideoMenu(false);
+    setStep(process === 'heating' ? 3 : process === 'cooling' ? 4 : 5);
+    setActiveProcess(process);
+    setLastVideo(process);
+    setCountdown(PROCESS_DURATIONS[process]);
+    setVideoFailed(false);
+    setFlashText(null);
+    setFeedback(`Demo mode: playing the ${process} video. The experiment continues from here.`);
+  }
+
   function startProcess(process: Exclude<ProcessKey, null>) {
     if (process === 'heating' && step !== 3) return;
     if (process === 'cooling' && step !== 4) return;
@@ -283,9 +297,29 @@ export default function App() {
           <p className="header-subtitle">ROY = Red, Orange &amp; Yellow — one molecule, many crystal colours</p>
         </div>
 
-        <button type="button" className="reset-button" onClick={resetAll}>
-          <RotateCcw size={24} strokeWidth={2.2} /> Reset
-        </button>
+        <div className="header-actions">
+          <div className="video-menu-wrap">
+            <button
+              type="button"
+              className="reset-button"
+              aria-haspopup="menu"
+              aria-expanded={showVideoMenu}
+              onClick={() => setShowVideoMenu((open) => !open)}
+            >
+              <Play size={22} strokeWidth={2.2} /> Videos
+            </button>
+            {showVideoMenu && (
+              <div className="video-menu" role="menu">
+                <button type="button" role="menuitem" onClick={() => quickPlay('heating')}>Heating · melt ({PROCESS_DURATIONS.heating} s)</button>
+                <button type="button" role="menuitem" onClick={() => quickPlay('cooling')}>Cooling · crystals ({PROCESS_DURATIONS.cooling} s)</button>
+                <button type="button" role="menuitem" onClick={() => quickPlay('reheating')}>Reheating · transformations ({PROCESS_DURATIONS.reheating} s)</button>
+              </div>
+            )}
+          </div>
+          <button type="button" className="reset-button" onClick={resetAll}>
+            <RotateCcw size={24} strokeWidth={2.2} /> Reset
+          </button>
+        </div>
       </header>
 
       <section className="sim-shell" aria-label="ROY crystallisation simulation">
