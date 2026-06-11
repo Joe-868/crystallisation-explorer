@@ -95,7 +95,6 @@ export default function App() {
   const [activeProcess, setActiveProcess] = useState<ProcessKey>(null);
   const [lastVideo, setLastVideo] = useState<ProcessKey>(null);
   const [countdown, setCountdown] = useState<number>(PROCESS_DURATIONS.heating);
-  const [progress, setProgress] = useState(0); // 0–1, drives the temperature readout
   const [videoFailed, setVideoFailed] = useState(false);
   const [flashText, setFlashText] = useState<string | null>(null);
   const [preloadedVideos, setPreloadedVideos] = useState<Partial<Record<Exclude<ProcessKey, null>, string>>>({});
@@ -137,13 +136,6 @@ export default function App() {
   const displayVideo = activeProcess ?? lastVideo;
   const videoSource = displayVideo ? (preloadedVideos[displayVideo] ?? VIDEO_PATHS[displayVideo]) : null;
 
-  // Live temperature readout, interpolated across the running process
-  const currentTemp = useMemo(() => {
-    if (!activeProcess) return null;
-    const { from, to } = TEMP_PROFILES[activeProcess];
-    return Math.round(from + (to - from) * Math.min(1, Math.max(0, progress)));
-  }, [activeProcess, progress]);
-
   useEffect(() => {
     if (!flashText) return;
     const timer = window.setTimeout(() => setFlashText(null), 10000);
@@ -166,7 +158,6 @@ export default function App() {
       setFeedback('Reheating complete. You have seen the full ROY polymorphism cycle!');
       setFlashText(flashMessages[5]);
     }
-    setProgress(1);
     setActiveProcess(null);
   }
 
@@ -181,10 +172,8 @@ export default function App() {
       return;
     }
 
-    const total = PROCESS_DURATIONS[activeProcess];
     const timer = window.setTimeout(() => {
       setCountdown((value) => value - 1);
-      setProgress((total - (countdown - 1)) / total);
     }, 1000);
     return () => window.clearTimeout(timer);
   }, [processRunning, videoFailed, countdown, activeProcess]);
@@ -234,7 +223,6 @@ export default function App() {
     setActiveProcess(null);
     setLastVideo(null);
     setCountdown(PROCESS_DURATIONS.heating);
-    setProgress(0);
     setVideoFailed(false);
     setFlashText(null);
   }
@@ -269,7 +257,6 @@ export default function App() {
     setActiveProcess(process);
     setLastVideo(process);
     setCountdown(PROCESS_DURATIONS[process]);
-    setProgress(0);
     setVideoFailed(false);
     setFlashText(
       process === 'heating'
@@ -375,11 +362,6 @@ export default function App() {
                   Loading videos… {preloadSettled}/{Object.keys(VIDEO_PATHS).length}
                 </div>
               )}
-              {currentTemp !== null && (
-                <div className="temp-badge" role="status" aria-label={`Stage temperature about ${currentTemp} degrees Celsius`}>
-                  <Thermometer size={16} /> ≈ {currentTemp} °C
-                </div>
-              )}
               <div className="timer-badge"><TimerReset size={16} /> {timerBadge}</div>
             </div>
           </div>
@@ -392,7 +374,7 @@ export default function App() {
                     <strong>{displayVideo === 'heating' ? 'Heating observation' : displayVideo === 'cooling' ? 'Cooling observation' : 'Reheating observation'}</strong>
                     <span>{displayVideo === 'heating' ? 'Yellow solid → red melt' : displayVideo === 'cooling' ? 'Red melt → red crystals' : 'Crystals → new forms → melt → new form → melt'}</span>
                     <span className="ramp-note">
-                      {displayVideo && `${TEMP_PROFILES[displayVideo].from} → ${TEMP_PROFILES[displayVideo].to} °C at ${RAMP_RATE} °C/min — footage condensed, temperature approximate`}
+                      {displayVideo && `${TEMP_PROFILES[displayVideo].from} → ${TEMP_PROFILES[displayVideo].to} °C at ${RAMP_RATE} °C/min — footage condensed`}
                     </span>
                   </div>
                 </div>
@@ -417,7 +399,6 @@ export default function App() {
                       const v = e.currentTarget;
                       if (!processRunning || !Number.isFinite(v.duration) || v.duration <= 0) return;
                       setCountdown(Math.max(0, Math.ceil(v.duration - v.currentTime)));
-                      setProgress(v.currentTime / v.duration);
                     }}
                     onEnded={() => {
                       if (activeProcess) finishProcess(activeProcess);

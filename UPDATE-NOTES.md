@@ -48,3 +48,6 @@ Mini quiz removed at Joe's request: guide is back to 6 steps, the final feedback
 
 ## v6 — real temperature programme
 Temperature readout updated to the actual Linkam programme: heating 30→130 °C, cooling 130→45 °C, reheating 30→130 °C, all at 30 °C/min. Because the videos are edited/condensed, the readout is linearly interpolated across playback: the start and end temperatures are exact, the middle is approximate. The "≈" prefix stays, and each video now shows a small italic note, e.g. "30 → 130 °C at 30 °C/min — footage condensed, temperature approximate", which is also honest science communication for the pupils.
+
+## v7 — live temperature readout removed
+The interpolated "≈ XX °C" badge has been removed (the edited footage made the live number too far from reality). The accurate programme information stays as a static note under each video title: e.g. "30 → 130 °C at 30 °C/min — footage condensed". The Thermometer icons on the Heat/Reheat buttons are unchanged.
