@@ -56,12 +56,17 @@ const PROCESS_DURATIONS = {
   reheating: 76,
 } as const;
 
-// Approximate Linkam stage temperatures for the readout (°C)
+// Real Linkam programme: 30 °C/min ramps. Heating 30→130 °C, cooling 130→45 °C,
+// reheating 30→130 °C. NOTE: the videos are edited/condensed, so the readout is
+// linearly interpolated across playback — endpoints are exact, the middle is
+// approximate (hence the "≈" and the on-screen note).
 const TEMP_PROFILES = {
-  heating: { from: 25, to: 115 },
-  cooling: { from: 115, to: 25 },
-  reheating: { from: 25, to: 130 },
+  heating: { from: 30, to: 130 },
+  cooling: { from: 130, to: 45 },
+  reheating: { from: 30, to: 130 },
 } as const;
+
+const RAMP_RATE = 30; // °C per minute, both heating and cooling
 
 function PictureWithFallback({
   src,
@@ -386,6 +391,9 @@ export default function App() {
                   <div>
                     <strong>{displayVideo === 'heating' ? 'Heating observation' : displayVideo === 'cooling' ? 'Cooling observation' : 'Reheating observation'}</strong>
                     <span>{displayVideo === 'heating' ? 'Yellow solid → red melt' : displayVideo === 'cooling' ? 'Red melt → red crystals' : 'Crystals → new forms → melt → new form → melt'}</span>
+                    <span className="ramp-note">
+                      {displayVideo && `${TEMP_PROFILES[displayVideo].from} → ${TEMP_PROFILES[displayVideo].to} °C at ${RAMP_RATE} °C/min — footage condensed, temperature approximate`}
+                    </span>
                   </div>
                 </div>
 

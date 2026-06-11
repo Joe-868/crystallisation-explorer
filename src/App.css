@@ -1374,3 +1374,12 @@ h2,
   0%, 100% { opacity: 1; }
   50% { opacity: 0.55; }
 }
+
+.ramp-note {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-style: italic;
+  opacity: 0.75;
+}
